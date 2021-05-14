@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from collections import OrderedDict, defaultdict
+from pathlib import Path
 import re
 from socket import gethostbyname
 from urllib.parse import urlparse
@@ -18,6 +19,10 @@ disable_warnings(InsecureRequestWarning)
 
 
 class WebMap(Session):
+    techs = []
+    cmses = []
+    DIR = Path(__file__).resolve().parent
+
     def __init__(self, target, resolve_ip=True):
         super().__init__()
         self.target = target
@@ -35,12 +40,21 @@ class WebMap(Session):
             self.ip = gethostbyname(self.hostname)
 
         self.headers['User-Agent'] = 'Mozilla/5.0'
-        self.interesting_headers = {'server', 'x-powered-by'}
+        self.interesting_headers = {
+            'access-control-allow-origin',
+            'last-modified',
+            'server',
+            'set-cookie',
+            'via',
+            'x-backend-server',
+            'x-powered-by',
+        }
 
         self.checks = OrderedDict(
             domains=self.check_domains,
             headers=self.check_headers,
-            source=self.check_source,
+            techs=self.check_techs,
+            cms=self.check_cms,
             analytics=self.check_analytics,
             social=self.check_social,
             contacts=self.check_contacts,
@@ -70,16 +84,29 @@ class WebMap(Session):
 
     def check_domains(self):
         '''Get available domains'''
-        domains_from_cert = get_domains_from_cert(self.hostname, self.port)
-        domain_from_rdns = reverse_dns(self.ip)
-        if domains_from_cert:
-            print('[+]', *domains_from_cert)
-        if domain_from_rdns:
-            print('[+]', domain_from_rdns)
-        return domains_from_cert or domain_from_rdns
+        domains = get_domains_from_cert(self.hostname, self.port or 443)
+        domain = reverse_dns(self.ip)
+        if domains:
+            print('[+]', *domains)
+        if domain:
+            print('[+]', domain)
+        return domains or domain
 
-    def check_source(self):
-        pass
+    def check_techs(self):
+        if not WebMap.techs:
+            with (self.DIR / 'data/tech.txt').open() as f:
+                WebMap.techs = f.read().splitlines()
+        res = filter(lambda x: x in self.first_response.text, self.techs)
+        print(*res)
+        return res
+
+    def check_cms(self):
+        if not WebMap.cmses:
+            with (self.DIR / 'data/cms.txt').open() as f:
+                WebMap.cmses = f.read().splitlines()
+        res = filter(lambda x: x in self.first_response.text, self.cmses)
+        print(*res)
+        return res
 
     def check_headers(self):
         '''Get interesting headers'''
@@ -148,10 +175,12 @@ class WebMap(Session):
 
         return contacts
 
-    def _check_url(self, url):
-        return self.get(url).status_code == 200
+    def _check_url(self, url) -> tuple[bool, int, int]:
+        response = self.get(url)
+        return response.ok, response.status_code, len(response.content)
 
-    def _get_page(self, response):
+    def _get_page(self, url):
+        response = self.get(url, allow_redirects=False)
         return BeautifulSoup(response.text, 'lxml')
 
 
