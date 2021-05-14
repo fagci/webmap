@@ -84,7 +84,7 @@ class WebMap(Session):
     def check_headers(self):
         '''Get interesting headers'''
         status = False
-        for k, v in self.first_response.headers.items():
+        for k, v in self.first_response.headers.lower_items():
             if k in self.interesting_headers:
                 print(f'{k}: {v}')
                 status = True
