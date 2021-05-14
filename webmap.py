@@ -38,9 +38,10 @@ class WebMap(Session):
     cmses = []
     DIR = Path(__file__).resolve().parent
 
-    def __init__(self, target, resolve_ip=True):
+    def __init__(self, target, resolve_ip=True, fuzz=False):
         super().__init__()
         self.target = target
+        self.fuzz = fuzz
         pu = urlparse(target)
         self.scheme = pu.scheme
         self.hostname = pu.hostname
@@ -76,7 +77,7 @@ class WebMap(Session):
             analytics=self.check_analytics,
             social=self.check_social,
             contacts=self.check_contacts,
-            vulns=self.check_vulns,
+            vulns=self.check_vulns if fuzz else None,
         )
 
         print('-'*42)
@@ -99,7 +100,7 @@ class WebMap(Session):
 
     def check(self, checks):
         for check_name, check in self.checks.items():
-            if checks is None or check_name in checks:
+            if check and (checks is None or check_name in checks):
                 print(f'\n{check_name.upper()}')
                 if not check():
                     nfound('no data')
@@ -232,11 +233,11 @@ class WebMap(Session):
         return BeautifulSoup(response.text, 'lxml')
 
 
-def main(target, checks=None, n=False):
+def main(target, checks=None, n=False, fuzz=False):
     print('='*42)
     print(BANNER.strip())
     print('='*42)
-    WebMap(target, resolve_ip=not n).check(checks)
+    WebMap(target, resolve_ip=not n, fuzz=fuzz).check(checks)
 
 
 if __name__ == '__main__':
