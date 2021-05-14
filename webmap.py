@@ -6,9 +6,14 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 from fire import Fire
+from requests.exceptions import SSLError
 from requests.sessions import Session
+from urllib3 import disable_warnings
+from urllib3.exceptions import InsecureRequestWarning
 
 from lib import get_domains_from_cert, reverse_dns
+
+disable_warnings(InsecureRequestWarning)
 
 
 class WebMap(Session):
@@ -47,20 +52,26 @@ class WebMap(Session):
         self.prepare()
 
     def prepare(self):
-        print('Prepare...')
-        self.first_tresponse = self.get(self.target)
+        print('[*] Prepare...')
+
+        try:
+            self.first_tresponse = self.get(self.target, allow_redirects=False)
+        except SSLError as e:
+            print('[E] SSL error', e)
+            self.first_tresponse = self.get(
+                self.target, allow_redirects=False, verify=False)
 
     def check(self, checks):
         for check_name, check in self.checks.items():
             if checks is None or check_name in checks:
-                print('Checking', check_name)
+                print('[*] Checking', check_name)
                 check()
 
     def check_domains(self):
         '''Get available domains'''
         domains_from_cert = get_domains_from_cert(self.hostname, self.port)
-        domains_from_rdns = reverse_dns(self.ip)
-        print(*(domains_from_cert, domains_from_rdns))
+        domain_from_rdns = reverse_dns(self.ip)
+        print(*(domains_from_cert+[domain_from_rdns]))
         pass
 
     def check_source(self):
@@ -84,4 +95,9 @@ def main(target, checks=None, n=False):
 
 
 if __name__ == '__main__':
-    Fire(main)
+    try:
+        Fire(main)
+    except KeyboardInterrupt:
+        exit(130)
+    except Exception as e:
+        print('[E]', repr(e))
