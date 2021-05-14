@@ -13,9 +13,24 @@ from requests.sessions import Session
 from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
+from colors import CEND, CEND, CGREY, CGREY, CDGREY, CEND
 from lib import get_domains_from_cert, reverse_dns
 
 disable_warnings(InsecureRequestWarning)
+
+BANNER = r"""
+%s__      _____| |__  _ __ ___   __ _ _ __
+%s\ \ /\ / / _ \ '_ \| '_ ` _ \ / _` | '_ \
+%s \ V  V /  __/ |_) | | | | | | (_| | |_) |
+%s  \_/\_/ \___|_.__/|_| |_| |_|\__,_| .__/
+%s                                   |_|%s""" % (
+    CEND,
+    CEND,
+    CGREY,
+    CGREY,
+    CDGREY,
+    CEND
+)
 
 
 class WebMap(Session):
@@ -35,6 +50,8 @@ class WebMap(Session):
 
         if not self.port:
             self.port = {'http': 80, 'https': 443}.get(self.scheme)
+
+        print(f'Target: {self.target}')
 
         if self.hostname and resolve_ip:
             self.ip = gethostbyname(self.hostname)
@@ -65,7 +82,7 @@ class WebMap(Session):
         self.prepare()
 
     def prepare(self):
-        print('[*] Prepare...')
+        print('Get initial response...')
 
         try:
             self.first_response = self.get(self.target, allow_redirects=False)
@@ -82,7 +99,7 @@ class WebMap(Session):
     def check(self, checks):
         for check_name, check in self.checks.items():
             if checks is None or check_name in checks:
-                print(f'\n{check_name[0].upper()}{check_name[1:]}:')
+                print(f'\n{check_name.upper()}')
                 if not check():
                     print('[-] no data')
 
@@ -215,6 +232,9 @@ class WebMap(Session):
 
 
 def main(target, checks=None, n=False):
+    print('='*42)
+    print(BANNER.strip())
+    print('='*42)
     WebMap(target, resolve_ip=not n).check(checks)
 
 
