@@ -165,18 +165,23 @@ class WebMap(Session):
 
     def check_fuzz(self):
         from concurrent.futures import ThreadPoolExecutor
+        from lib.progress import Progress
         paths = (
             self.DIR / 'data/fuzz_common.txt',
         )
         status = False
         for p in paths:
             with p.open() as f:
+                progress = Progress(sum(1 for _ in f))
+                f.seek(0)
                 with ThreadPoolExecutor() as ex:
                     r = ex.map(self._check_path, f.read().splitlines())
                     for res, path, code, c_len in r:
                         if res:
+                            print(end='\r')
                             found(f'[{code}] {path} ({c_len} B)')
                             status = True
+                        progress(path)
         return status
 
     def check_headers(self):
