@@ -3,7 +3,7 @@
 from collections import OrderedDict, defaultdict
 from pathlib import Path
 import re
-from socket import error, gethostbyname
+from socket import gethostbyname
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
@@ -13,8 +13,8 @@ from requests.sessions import Session
 from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
-from colors import CEND, CEND, CGREY, CGREY, CDGREY, CEND, found, nfound, info, err
-from lib import get_domains_from_cert, reverse_dns
+from lib.colors import CEND, CEND, CGREY, CGREY, CDGREY, CEND, found, nfound, info, err
+from lib.utils import get_domains_from_cert, reverse_dns
 
 disable_warnings(InsecureRequestWarning)
 
