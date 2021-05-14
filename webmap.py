@@ -3,7 +3,7 @@
 from collections import OrderedDict, defaultdict
 from pathlib import Path
 import re
-from socket import gethostbyname
+from socket import error, gethostbyname
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
@@ -13,7 +13,7 @@ from requests.sessions import Session
 from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
-from colors import CEND, CEND, CGREY, CGREY, CDGREY, CEND
+from colors import CEND, CEND, CGREY, CGREY, CDGREY, CEND, found, nfound, info, err
 from lib import get_domains_from_cert, reverse_dns
 
 disable_warnings(InsecureRequestWarning)
@@ -23,7 +23,7 @@ BANNER = r"""
 %s\ \ /\ / / _ \ '_ \| '_ ` _ \ / _` | '_ \
 %s \ V  V /  __/ |_) | | | | | | (_| | |_) |
 %s  \_/\_/ \___|_.__/|_| |_| |_|\__,_| .__/
-%s                                   |_|%s""" % (
+%s by fagci                          |_|%s""" % (
     CEND,
     CEND,
     CGREY,
@@ -51,11 +51,11 @@ class WebMap(Session):
         if not self.port:
             self.port = {'http': 80, 'https': 443}.get(self.scheme)
 
-        print(f'Target: {self.target}')
+        info(f'Target: {self.target}')
 
         if self.hostname and resolve_ip:
             self.ip = gethostbyname(self.hostname)
-            print('[i] IP:', self.ip)
+            info('IP:', self.ip)
 
         self.headers['User-Agent'] = 'Mozilla/5.0'
         self.interesting_headers = {
@@ -79,29 +79,30 @@ class WebMap(Session):
             vulns=self.check_vulns,
         )
 
+        print('-'*42)
         self.prepare()
 
     def prepare(self):
-        print('Get initial response...')
+        info('Get initial response...')
 
         try:
             self.first_response = self.get(self.target, allow_redirects=False)
         except SSLError as e:
-            print('[E] SSL error', e)
+            err('SSL error', e)
             self.first_response = self.get(
                 self.target, allow_redirects=False, verify=False)
 
         if not self.first_response.ok:
             raise Exception(f'Status: {self.first_response.status_code}')
 
-        print(f'[{self.first_response.status_code}]')
+        info(f'[{self.first_response.status_code}]')
 
     def check(self, checks):
         for check_name, check in self.checks.items():
             if checks is None or check_name in checks:
                 print(f'\n{check_name.upper()}')
                 if not check():
-                    print('[-] no data')
+                    nfound('no data')
 
     def check_domains(self):
         '''Get available domains'''
@@ -109,10 +110,10 @@ class WebMap(Session):
         if self.scheme == 'https':
             domains = get_domains_from_cert(self.hostname, self.port or 443)
             if domains:
-                print('[+] cert:', *domains)
+                found('cert:', *domains)
         domain = reverse_dns(self.ip)
         if domain:
-            print('[+] rDNS:', domain)
+            found('rDNS:', domain)
         return domains or domain
 
     def check_techs(self):
@@ -122,7 +123,7 @@ class WebMap(Session):
         res = filter(lambda x: x in self.first_response.text, self.techs)
         res = list(res)
         if res:
-            print(*res)
+            found(*res)
         return res
 
     def check_cms(self):
@@ -132,7 +133,7 @@ class WebMap(Session):
         res = filter(lambda x: x in self.first_response.text, self.cmses)
         res = list(res)
         if res:
-            print(*res)
+            found(*res)
         return res
 
     def check_vulns(self):
@@ -147,7 +148,7 @@ class WebMap(Session):
                     r = ex.map(self._check_path, f.read().splitlines())
                     for res, path, code, c_len in r:
                         if res:
-                            print(path, code, c_len)
+                            found(path, code, c_len)
                             status = True
         return status
 
@@ -156,7 +157,7 @@ class WebMap(Session):
         status = False
         for k, v in self.first_response.headers.lower_items():
             if k in self.interesting_headers:
-                print(f'{k}: {v}')
+                found(f'{k}: {v}')
                 status = True
         return status
 
@@ -174,7 +175,7 @@ class WebMap(Session):
         for name, reg in regs.items():
             m = re.findall(reg, self.first_response.text, re.IGNORECASE)
             if m:
-                print(name, m[0])
+                found(name, m[0])
                 status = True
         return status
 
@@ -194,7 +195,7 @@ class WebMap(Session):
         for name, reg in regs.items():
             m = re.findall(reg, self.first_response.text, re.IGNORECASE)
             if m:
-                print(name, m[0])
+                found(name, m[0])
                 status = True
         return status
 
@@ -217,7 +218,7 @@ class WebMap(Session):
         for n, cc in contacts.items():
             for c in cc:
                 v = unquote(unescape(c))
-                print(n, v)
+                found(n, v)
 
         return contacts
 
@@ -244,4 +245,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         exit(130)
     except Exception as e:
-        print('[E]', repr(e))
+        err(repr(e))
