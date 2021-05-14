@@ -175,7 +175,7 @@ class WebMap(Session):
                     r = ex.map(self._check_path, f.read().splitlines())
                     for res, path, code, c_len in r:
                         if res:
-                            found(path, code, c_len)
+                            found(f'[{code}] {path} ({c_len} B)')
                             status = True
         return status
 
