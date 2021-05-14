@@ -38,10 +38,11 @@ class WebMap(Session):
     cmses = []
     DIR = Path(__file__).resolve().parent
 
-    def __init__(self, target, resolve_ip=True, fuzz=False):
+    def __init__(self, target, resolve_ip=True, fuzz=False, allow_redirects=False):
         super().__init__()
         self.target = target
         self.fuzz = fuzz
+        self.allow_redirects = allow_redirects
         pu = urlparse(target)
         self.scheme = pu.scheme
         self.hostname = pu.hostname
@@ -88,16 +89,19 @@ class WebMap(Session):
         info('Get initial response...')
 
         try:
-            self.first_response = self.get(self.target, allow_redirects=False)
+            self.first_response = self.get(
+                self.target, allow_redirects=self.allow_redirects)
         except SSLError as e:
             err('SSL error', e)
             self.first_response = self.get(
-                self.target, allow_redirects=False, verify=False)
+                self.target, allow_redirects=self.allow_redirects, verify=False)
 
         if not self.first_response.ok:
             raise Exception(f'Status: {self.first_response.status_code}')
 
         info(f'[{self.first_response.status_code}]')
+        if self.first_response.is_redirect:
+            info('Location:', self.first_response.headers.get('location'))
 
     def check(self, checks):
         for check_name, check in self.checks.items():
@@ -255,11 +259,12 @@ class WebMap(Session):
         return BeautifulSoup(response.text, 'lxml')
 
 
-def main(target, checks=None, n=False, fuzz=False):
+def main(target, checks=None, n=False, fuzz=False, r=False):
     print('='*42)
     print(BANNER.strip())
     print('='*42)
-    WebMap(target, resolve_ip=not n, fuzz=fuzz).check(checks)
+    WebMap(target, resolve_ip=not n, fuzz=fuzz,
+           allow_redirects=r).check(checks)
 
 
 if __name__ == '__main__':

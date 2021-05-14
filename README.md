@@ -15,3 +15,5 @@ If you want to check vulns by fuzzing (may be abusable, ask about permissions fi
 ```python3 webapp.py https://site.com --fuzz```
 
 To ~~hide your ass~~ disable IP resolve, pass `-n`.
+
+To allow redirects pass `-r` option.
