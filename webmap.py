@@ -58,6 +58,7 @@ class WebMap(Session):
             analytics=self.check_analytics,
             social=self.check_social,
             contacts=self.check_contacts,
+            vulns=self.check_vulns,
         )
 
         self.prepare()
@@ -75,6 +76,8 @@ class WebMap(Session):
         if not self.first_response.ok:
             raise Exception(f'Status: {self.first_response.status_code}')
 
+        print(f'[{self.first_response.status_code}]')
+
     def check(self, checks):
         for check_name, check in self.checks.items():
             if checks is None or check_name in checks:
@@ -84,10 +87,12 @@ class WebMap(Session):
 
     def check_domains(self):
         '''Get available domains'''
-        domains = get_domains_from_cert(self.hostname, self.port or 443)
+        domains = None
+        if self.scheme == 'https':
+            domains = get_domains_from_cert(self.hostname, self.port or 443)
+            if domains:
+                print('[+]', *domains)
         domain = reverse_dns(self.ip)
-        if domains:
-            print('[+]', *domains)
         if domain:
             print('[+]', domain)
         return domains or domain
@@ -97,7 +102,9 @@ class WebMap(Session):
             with (self.DIR / 'data/tech.txt').open() as f:
                 WebMap.techs = f.read().splitlines()
         res = filter(lambda x: x in self.first_response.text, self.techs)
-        print(*res)
+        res = list(res)
+        if res:
+            print(*res)
         return res
 
     def check_cms(self):
@@ -105,8 +112,26 @@ class WebMap(Session):
             with (self.DIR / 'data/cms.txt').open() as f:
                 WebMap.cmses = f.read().splitlines()
         res = filter(lambda x: x in self.first_response.text, self.cmses)
-        print(*res)
+        res = list(res)
+        if res:
+            print(*res)
         return res
+
+    def check_vulns(self):
+        from concurrent.futures import ThreadPoolExecutor
+        paths = (
+            self.DIR / 'data/fuzz_common.txt',
+        )
+        status = False
+        for p in paths:
+            with p.open() as f:
+                with ThreadPoolExecutor() as ex:
+                    r = ex.map(self._check_path, f.read().splitlines())
+                    for res, path, code, c_len in r:
+                        if res:
+                            print(path, code, c_len)
+                            status = True
+        return status
 
     def check_headers(self):
         '''Get interesting headers'''
@@ -157,11 +182,13 @@ class WebMap(Session):
 
     def check_contacts(self):
         '''Get contact information'''
+        from html import unescape
+        from urllib.parse import unquote
         regs = {
             'mail': r'[\w\-][\w\-\.]+@[\w\-][\w\-]+\.[^0-9\W]{1,5}',
             'phone': r'\+\d[-()\s\d]{5,}?(?=\s*[+<])',
-            'tel': r'tel:(\+?[^\'"]+)',
-            'mailto': r'mailto:(\+?[^\'"]+)',
+            'tel': r'tel:(\+?[^\'"<>]+)',
+            'mailto': r'mailto:(\+?[^\'"<>]+)',
         }
         contacts = defaultdict(set)
         for name, reg in regs.items():
@@ -171,13 +198,15 @@ class WebMap(Session):
                 contacts[name].add(m)
         for n, cc in contacts.items():
             for c in cc:
-                print(n, c)
+                v = unquote(unescape(c))
+                print(n, v)
 
         return contacts
 
-    def _check_url(self, url) -> tuple[bool, int, int]:
-        response = self.get(url)
-        return response.ok, response.status_code, len(response.content)
+    def _check_path(self, path) -> tuple[bool, str, int, int]:
+        url = f'{self.target}{path}'
+        response = self.get(url, verify=False, timeout=5, stream=True)
+        return response.ok, path, response.status_code, len(response.content)
 
     def _get_page(self, url):
         response = self.get(url, allow_redirects=False)
