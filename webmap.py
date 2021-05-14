@@ -131,7 +131,7 @@ class WebMap(Session):
     def check_contacts(self):
         '''Get contact information'''
         regs = {
-            'mail': r'[\w\-][\w\-\.]+@[\w\-][\w\-]+\.[^0-9\s]{1,5}',
+            'mail': r'[\w\-][\w\-\.]+@[\w\-][\w\-]+\.[^0-9\W]{1,5}',
             'phone': r'\+\d[-()\s\d]{5,}?(?=\s*[+<])',
             'tel': r'tel:(\+?[^\'"]+)',
             'mailto': r'mailto:(\+?[^\'"]+)',
