@@ -1,39 +1,46 @@
 #!/usr/bin/env python3
 
-from urllib.parse import urlparse
+from collections import OrderedDict
 from bs4 import BeautifulSoup
 from fire import Fire
-import requests
 from requests.sessions import Session
 
 
 class WebMap(Session):
     def __init__(self, target):
         super().__init__()
-        pu = urlparse(target)
         self.target = target
-        self.host = pu.hostname
-        self.interesting_headers = {'server', 'x-powered-by'}
-        self.headers['User-Agent'] = 'Mozilla/5.0'
-        self.first_tresponse = requests.get(self.target)
 
-        self.checks = (
-            self.check_domains,
-            self.check_headers,
-            self.check_source,
+        self.headers['User-Agent'] = 'Mozilla/5.0'
+        self.interesting_headers = {'server', 'x-powered-by'}
+
+        self.checks = OrderedDict(
+            domains=self.check_domains,
+            headers=self.check_headers,
+            source=self.check_source,
         )
 
-    def check(self):
-        for check in self.checks:
-            check()
+        self.prepare()
+
+    def prepare(self):
+        print('Prepare...')
+        self.first_tresponse = self.get(self.target)
+
+    def check(self, checks):
+        for check_name, check in self.checks.items():
+            if checks is None or check_name in checks:
+                print('Checking', check_name)
+                check()
 
     def check_domains(self):
+        '''Get available domains from certificate'''
         pass
 
     def check_source(self):
         pass
 
     def check_headers(self):
+        '''Get interesting headers'''
         for k, v in self.first_tresponse.headers.items():
             if k in self.interesting_headers:
                 print(f'{k}: {v}')
@@ -45,8 +52,8 @@ class WebMap(Session):
         return BeautifulSoup(response.text, 'lxml')
 
 
-def main(target):
-    WebMap(target).check()
+def main(target, checks=None):
+    WebMap(target).check(checks)
 
 
 if __name__ == '__main__':
