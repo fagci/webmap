@@ -77,7 +77,7 @@ class WebMap(Session):
             analytics=self.check_analytics,
             social=self.check_social,
             contacts=self.check_contacts,
-            vulns=self.check_vulns if fuzz else None,
+            fuzz=self.check_fuzz,
         )
 
         print('-'*42)
@@ -101,6 +101,8 @@ class WebMap(Session):
     def check(self, checks):
         for check_name, check in self.checks.items():
             if check and (checks is None or check_name in checks):
+                if check_name == 'fuzz' and not (self.fuzz or checks):
+                    continue
                 print(f'\n{check_name.upper()}')
                 if not check():
                     nfound('no data')
@@ -137,7 +139,7 @@ class WebMap(Session):
             found(*res)
         return res
 
-    def check_vulns(self):
+    def check_fuzz(self):
         from concurrent.futures import ThreadPoolExecutor
         paths = (
             self.DIR / 'data/fuzz_common.txt',
