@@ -91,10 +91,10 @@ class WebMap(Session):
         if self.scheme == 'https':
             domains = get_domains_from_cert(self.hostname, self.port or 443)
             if domains:
-                print('[+]', *domains)
+                print('[+] cert:', *domains)
         domain = reverse_dns(self.ip)
         if domain:
-            print('[+]', domain)
+            print('[+] rDNS:', domain)
         return domains or domain
 
     def check_techs(self):
