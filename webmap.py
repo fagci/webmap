@@ -1,15 +1,39 @@
 #!/usr/bin/env python3
 
 from collections import OrderedDict
+from socket import gethostbyname
+from urllib.parse import urlparse
+
 from bs4 import BeautifulSoup
 from fire import Fire
 from requests.sessions import Session
 
+from lib import get_domains_from_cert, reverse_dns
+
 
 class WebMap(Session):
-    def __init__(self, target):
+    def __init__(self, target, resolve_ip=True):
         super().__init__()
         self.target = target
+        pu = urlparse(target)
+        self.scheme = pu.scheme
+        self.hostname = pu.hostname
+        self.netloc = pu.netloc
+        self.port = pu.port
+        self.path = pu.path
+
+        if not self.port:
+            self.port = {'http': 80, 'https': 443}.get(self.scheme)
+
+        print(f'''
+                Hostname: {self.hostname}
+                Netloc: {self.netloc}
+                Port: {self.port}
+                Path: {self.path}
+                ''')
+
+        if self.hostname and resolve_ip:
+            self.ip = gethostbyname(self.hostname)
 
         self.headers['User-Agent'] = 'Mozilla/5.0'
         self.interesting_headers = {'server', 'x-powered-by'}
@@ -33,7 +57,10 @@ class WebMap(Session):
                 check()
 
     def check_domains(self):
-        '''Get available domains from certificate'''
+        '''Get available domains'''
+        domains_from_cert = get_domains_from_cert(self.hostname, self.port)
+        domains_from_rdns = reverse_dns(self.ip)
+        print(*(domains_from_cert, domains_from_rdns))
         pass
 
     def check_source(self):
@@ -52,8 +79,8 @@ class WebMap(Session):
         return BeautifulSoup(response.text, 'lxml')
 
 
-def main(target, checks=None):
-    WebMap(target).check(checks)
+def main(target, checks=None, n=False):
+    WebMap(target, resolve_ip=not n).check(checks)
 
 
 if __name__ == '__main__':
