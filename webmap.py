@@ -38,6 +38,7 @@ class WebMap(Session):
 
         if self.hostname and resolve_ip:
             self.ip = gethostbyname(self.hostname)
+            print('[i] IP:', self.ip)
 
         self.headers['User-Agent'] = 'Mozilla/5.0'
         self.interesting_headers = {
