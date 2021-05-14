@@ -71,6 +71,7 @@ class WebMap(Session):
 
         self.checks = OrderedDict(
             domains=self.check_domains,
+            linked_domains=self.check_linked_domains,
             headers=self.check_headers,
             techs=self.check_techs,
             cms=self.check_cms,
@@ -138,6 +139,25 @@ class WebMap(Session):
         if res:
             found(*res)
         return res
+
+    def check_linked_domains(self):
+        links = BeautifulSoup(self.first_response.text,
+                              'lxml').select('[href],[src]')
+        domains = defaultdict(set)
+        for l in links:
+            url = l.get('href') or l.get('src')
+            if not url:
+                continue
+            pu = urlparse(url)
+            if not (pu and pu.hostname):
+                continue
+            if pu.hostname == self.hostname:
+                continue
+            domains[l.name].add(pu.hostname)
+        if domains:
+            for tag, d in domains.items():
+                found(f'<{tag}>', ', '.join(sorted(d)))
+        return domains
 
     def check_fuzz(self):
         from concurrent.futures import ThreadPoolExecutor
