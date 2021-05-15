@@ -37,38 +37,16 @@ class WebMap(Session):
     cmses = []
     DIR = Path(__file__).resolve().parent
 
-    def __init__(self, target, resolve_ip=True, fuzz=False, allow_redirects=False):
+    def __init__(self, target, fuzz=False, allow_redirects=False, resolve_ip=True):
         super().__init__()
+        self.headers['User-Agent'] = 'Mozilla/5.0'
+
+        # initial data
         self.target = target
         self.fuzz = fuzz
         self.allow_redirects = allow_redirects
-        pu = urlparse(target)
-        self.scheme = pu.scheme
-        self.hostname = pu.hostname
-        self.netloc = pu.netloc
-        self.port = pu.port
-        self.path = pu.path
 
-        if not self.port:
-            self.port = {'http': 80, 'https': 443}.get(self.scheme)
-
-        info(f'Target: {self.target}')
-
-        if self.hostname and resolve_ip:
-            self.ip = gethostbyname(self.hostname)
-            info('IP:', self.ip)
-
-        self.headers['User-Agent'] = 'Mozilla/5.0'
-        self.interesting_headers = {
-            'access-control-allow-origin',
-            'last-modified',
-            'server',
-            'set-cookie',
-            'via',
-            'x-backend-server',
-            'x-powered-by',
-        }
-
+        # all defined checks
         self.checks = OrderedDict(
             domains=self.check_domains,
             linked_domains=self.check_linked_domains,
@@ -81,10 +59,35 @@ class WebMap(Session):
             fuzz=self.check_fuzz,
         )
 
+        self.interesting_headers = {
+            'access-control-allow-origin',
+            'last-modified',
+            'server',
+            'set-cookie',
+            'via',
+            'x-backend-server',
+            'x-powered-by',
+        }
+
+        # target url parts
+        pu = urlparse(target)
+        self.scheme = pu.scheme
+        self.hostname = pu.hostname
+        self.netloc = pu.netloc
+        self.port = pu.port or {'http': 80, 'https': 443}.get(self.scheme)
+        self.path = pu.path
+
+        if resolve_ip and self.hostname:
+            self.ip = gethostbyname(self.hostname)
+
+        info(f'Target: {self.target}')
+        info('IP:', self.ip if self.ip else 'not resolved')
         print('-'*42)
+
         self.prepare()
 
     def prepare(self):
+        '''Make initial request'''
         info('Get initial response...')
 
         try:
