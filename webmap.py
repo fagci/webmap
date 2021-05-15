@@ -2,7 +2,6 @@
 
 from collections import OrderedDict, defaultdict
 from pathlib import Path
-import re
 from socket import gethostbyname
 from urllib.parse import urlparse
 
@@ -14,6 +13,7 @@ from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
 from lib.colors import CEND, CEND, CGREY, CGREY, CDGREY, CEND, found, nfound, info, err
+from lib.parse import get_analytics, get_social, get_contacts
 from lib.utils import get_domains_from_cert, reverse_dns
 
 disable_warnings(InsecureRequestWarning)
@@ -195,64 +195,24 @@ class WebMap(Session):
 
     def check_analytics(self):
         '''Get analytics IDs'''
-        regs = {
-            'adsense': r'pub-\d+',
-            'google': r'ua-[0-9-]+',
-            'googleTagManager': r'gtm-[^&\'"%]+',
-            'mail.ru': r'top.mail.ru[^\'"]+from=(\d+)',
-            'yandexMetrika': r'metrika.yandex[^\'"]+?id=(\d+)',
-            'vk': r'vk-[^&"\'%]+'
-        }
-        status = False
-        for name, reg in regs.items():
-            m = re.findall(reg, self.first_response.text, re.IGNORECASE)
-            if m:
-                found(name, m[0])
-                status = True
-        return status
+        res = get_analytics(self.first_response.text)
+        for n, r in res.items():
+            found(f'{n}:', *r)
+        return res
 
     def check_social(self):
         '''Get social links'''
-        regs = {
-            'facebook': r'facebook\.com/([^"\'/]+)',
-            'github': r'github\.com/([^"\'/]+)',
-            'instagram': r'instagram\.com/([^"\'/]+)',
-            'ok': r'ok\.ru/([^"\'/]+)',
-            'telegram': r't\.me/([^"\'/]+)',
-            'twitter': r'twitter\.com/([^"\'/]+)',
-            'vk': r'vk\.com/([^"\'/]+)',
-            'youtube': r'youtube\.\w+?(/channel/[^"\']+)',
-        }
-        status = False
-        for name, reg in regs.items():
-            m = re.findall(reg, self.first_response.text, re.IGNORECASE)
-            if m:
-                found(name, m[0])
-                status = True
-        return status
+        res = get_social(self.first_response.text)
+        for n, r in res.items():
+            found(f'{n}:', *r)
+        return res
 
     def check_contacts(self):
         '''Get contact information'''
-        from html import unescape
-        from urllib.parse import unquote
-        regs = {
-            'mail': r'[\w\-][\w\-\.]+@[\w\-][\w\-]+\.[^0-9\W]{1,5}',
-            'phone': r'\+\d[-()\s\d]{5,}?(?=\s*[+<])',
-            'tel': r'tel:(\+?[^\'"<>]+)',
-            'mailto': r'mailto:(\+?[^\'"<>]+)',
-        }
-        contacts = defaultdict(set)
-        for name, reg in regs.items():
-            for m in re.findall(reg, self.first_response.text):
-                if m.endswith(('png', 'svg')):
-                    continue
-                contacts[name].add(m)
-        for n, cc in contacts.items():
-            for c in cc:
-                v = unquote(unescape(c))
-                found(n, v)
-
-        return contacts
+        res = get_contacts(self.first_response.text)
+        for n, r in res.items():
+            found(f'{n}:', *r)
+        return res
 
     def _check_path(self, path) -> tuple[bool, str, int, int]:
         url = f'{self.target}{path}'
