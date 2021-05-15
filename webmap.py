@@ -37,6 +37,9 @@ class WebMap(Session):
     cmses = []
     DIR = Path(__file__).resolve().parent
 
+    __slots__ = ('target', 'fuzz', 'allow_redirects', 'scheme',
+                 'hostname', 'netloc', 'port', 'path', 'ip', 'response', 'html', 'interesting_headers')
+
     def __init__(self, target, fuzz=False, allow_redirects=False, resolve_ip=True):
         super().__init__()
         self.headers['User-Agent'] = 'Mozilla/5.0'
@@ -128,7 +131,7 @@ class WebMap(Session):
                 elif not isinstance(res, bool):
                     found(res)
                 else:
-                    found('found')
+                    info('found')
 
     def check_domains(self):
         '''Get available domains'''
@@ -156,9 +159,6 @@ class WebMap(Session):
         res = filter(lambda x: x in self.html, self.cmses)
         return list(res)
 
-    def check_linked_domains(self):
-        return get_linked_domains(self.html, self.hostname)
-
     def check_fuzz(self):
         from concurrent.futures import ThreadPoolExecutor
         from lib.progress import Progress
@@ -179,6 +179,9 @@ class WebMap(Session):
                             status = True
                         progress(path)
         return status
+
+    def check_linked_domains(self):
+        return get_linked_domains(self.html, self.hostname)
 
     def check_headers(self):
         '''Get interesting headers'''
