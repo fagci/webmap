@@ -122,8 +122,10 @@ class WebMap(Session):
                             found(f'{n}:', ', '.join(r))
                 elif isinstance(res, list) or isinstance(res, set):
                     found(*res)
-                else:
+                elif not isinstance(res, bool):
                     found(res)
+                else:
+                    found('found')
 
     def check_domains(self):
         '''Get available domains'''
