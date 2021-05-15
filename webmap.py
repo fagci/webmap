@@ -113,7 +113,8 @@ class WebMap(Session):
             info('Location:', self.response.headers.get('location'))
         self.html = self.response.text
 
-    def check(self, checks):
+    def check(self, checks=None):
+        '''Run checks, or provided in param'''
         for check_name, check in self.checks.items():
             if check and (checks is None or check_name in checks):
                 if check_name == 'fuzz' and not (self.fuzz or checks):
@@ -218,6 +219,7 @@ class WebMap(Session):
         return get_contacts(self.html)
 
     def _check_path(self, path) -> tuple[bool, str, int, int]:
+        '''Check path for statuses < 400 without verification'''
         url = f'{self.target}{path}'
         response = self.get(url, verify=False, timeout=5, stream=True)
         return response.ok, path, response.status_code, len(response.content)
