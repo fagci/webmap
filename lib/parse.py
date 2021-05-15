@@ -1,3 +1,4 @@
+from html.parser import HTMLParser
 import re
 from collections import defaultdict
 
@@ -61,19 +62,22 @@ def get_contacts(html):
     return result
 
 
+class LinkedDomainsParser(HTMLParser):
+    def __init__(self, src_domain=None):
+        super().__init__()
+        self.src_domain = src_domain
+        self.result = defaultdict(set)
+
+    def handle_starttag(self, tag, attrs):
+        from urllib.parse import urlparse
+        for name, value in attrs:
+            if name in ['href', 'src']:
+                pu = urlparse(value)
+                if pu and pu.hostname and pu.hostname != self.src_domain:
+                    self.result[f'<{tag}>'].add(pu.hostname)
+
+
 def get_linked_domains(html, src_domain=None):
-    from bs4 import BeautifulSoup
-    from urllib.parse import urlparse
-    links = BeautifulSoup(html, 'lxml').select('[href],[src]')
-    domains = defaultdict(set)
-    for l in links:
-        url = l.get('href') or l.get('src')
-        if not url:
-            continue
-        pu = urlparse(url)
-        if not (pu and pu.hostname):
-            continue
-        if pu.hostname == src_domain:
-            continue
-        domains[f'<{l.name}>'].add(pu.hostname)
-    return domains
+    parser = LinkedDomainsParser(src_domain)
+    parser.feed(html)
+    return parser.result
