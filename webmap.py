@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from pathlib import Path
 from socket import gethostbyname
 from urllib.parse import urlparse
@@ -102,6 +102,7 @@ class WebMap(Session):
         info(f'[{self.response.status_code}]')
         if self.response.is_redirect:
             info('Location:', self.response.headers.get('location'))
+        self.html = self.response.text
 
     def check(self, checks):
         for check_name, check in self.checks.items():
@@ -143,18 +144,18 @@ class WebMap(Session):
         if not WebMap.techs:
             with (self.DIR / 'data/tech.txt').open() as f:
                 WebMap.techs = f.read().splitlines()
-        res = filter(lambda x: x in self.response.text, self.techs)
+        res = filter(lambda x: x in self.html, self.techs)
         return list(res)
 
     def check_cms(self):
         if not WebMap.cmses:
             with (self.DIR / 'data/cms.txt').open() as f:
                 WebMap.cmses = f.read().splitlines()
-        res = filter(lambda x: x in self.response.text, self.cmses)
+        res = filter(lambda x: x in self.html, self.cmses)
         return list(res)
 
     def check_linked_domains(self):
-        return get_linked_domains(self.response.text, self.hostname)
+        return get_linked_domains(self.html, self.hostname)
 
     def check_fuzz(self):
         from concurrent.futures import ThreadPoolExecutor
@@ -183,15 +184,15 @@ class WebMap(Session):
 
     def check_analytics(self):
         '''Get analytics IDs'''
-        return get_analytics(self.response.text)
+        return get_analytics(self.html)
 
     def check_social(self):
         '''Get social links'''
-        return get_social(self.response.text)
+        return get_social(self.html)
 
     def check_contacts(self):
         '''Get contact information'''
-        return get_contacts(self.response.text)
+        return get_contacts(self.html)
 
     def _check_path(self, path) -> tuple[bool, str, int, int]:
         url = f'{self.target}{path}'
