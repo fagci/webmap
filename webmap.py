@@ -5,7 +5,6 @@ from pathlib import Path
 from socket import gethostbyname
 from urllib.parse import urlparse
 
-from bs4 import BeautifulSoup
 from fire import Fire
 from requests.exceptions import SSLError
 from requests.sessions import Session
@@ -198,10 +197,6 @@ class WebMap(Session):
         url = f'{self.target}{path}'
         response = self.get(url, verify=False, timeout=5, stream=True)
         return response.ok, path, response.status_code, len(response.content)
-
-    def _get_page(self, url):
-        response = self.get(url, allow_redirects=False)
-        return BeautifulSoup(response.text, 'lxml')
 
 
 def main(target, checks=None, n=False, fuzz=False, r=False):
