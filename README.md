@@ -17,3 +17,5 @@ If you want to check vulns by fuzzing (may be abusable, ask about permissions fi
 To ~~hide your ass~~ disable IP resolve, pass `-n`.
 
 To allow redirects pass `-r` option.
+
+To perform all checks pass `--full` option.

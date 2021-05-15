@@ -246,6 +246,7 @@ class WebMap(Session):
 
     def _check_path(self, path) -> tuple[bool, str, int, int]:
         '''Check path for statuses < 400 without verification'''
+        # NOTE: all paths fuzzed from target root
         url = f'{self.target}{path}'
         response = self.get(url, verify=False, timeout=5,
                             stream=True, allow_redirects=False)
@@ -259,10 +260,14 @@ class WebMap(Session):
         return response.status_code//100 == 2, subdomain, response.status_code, len(response.content)
 
 
-def main(target, checks=None, n=False, fuzz=False, subdomains=False, r=False):
+def main(target, checks=None, n=False, fuzz=False, subdomains=False, r=False, full=False):
     print('='*42)
     print(BANNER.strip())
     print('='*42)
+    if full:
+        fuzz = True
+        subdomains = True
+        checks = None  # all
     WebMap(target, resolve_ip=not n, fuzz=fuzz,
            subdomains=subdomains,
            allow_redirects=r).check(checks)
