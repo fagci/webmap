@@ -59,3 +59,21 @@ def get_contacts(html):
             v = unquote(unescape(c))
             result[n].add(v)
     return result
+
+
+def get_linked_domains(html, src_domain=None):
+    from bs4 import BeautifulSoup
+    from urllib.parse import urlparse
+    links = BeautifulSoup(html, 'lxml').select('[href],[src]')
+    domains = defaultdict(set)
+    for l in links:
+        url = l.get('href') or l.get('src')
+        if not url:
+            continue
+        pu = urlparse(url)
+        if not (pu and pu.hostname):
+            continue
+        if pu.hostname == src_domain:
+            continue
+        domains[f'<{l.name}>'].add(pu.hostname)
+    return domains

@@ -13,7 +13,7 @@ from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
 from lib.colors import CEND, CEND, CGREY, CGREY, CDGREY, CEND, found, nfound, info, err
-from lib.parse import get_analytics, get_social, get_contacts
+from lib.parse import get_analytics, get_social, get_contacts, get_linked_domains
 from lib.utils import get_domains_from_cert, reverse_dns
 
 disable_warnings(InsecureRequestWarning)
@@ -154,20 +154,7 @@ class WebMap(Session):
         return list(res)
 
     def check_linked_domains(self):
-        links = BeautifulSoup(self.first_response.text,
-                              'lxml').select('[href],[src]')
-        domains = defaultdict(set)
-        for l in links:
-            url = l.get('href') or l.get('src')
-            if not url:
-                continue
-            pu = urlparse(url)
-            if not (pu and pu.hostname):
-                continue
-            if pu.hostname == self.hostname:
-                continue
-            domains[f'<{l.name}>'].add(pu.hostname)
-        return domains
+        return get_linked_domains(self.first_response.text, self.hostname)
 
     def check_fuzz(self):
         from concurrent.futures import ThreadPoolExecutor
