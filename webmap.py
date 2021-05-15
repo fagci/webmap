@@ -146,6 +146,7 @@ class WebMap(Session):
         return res
 
     def check_techs(self):
+        '''Get used techs'''
         if not WebMap.techs:
             with (self.DIR / 'data/tech.txt').open() as f:
                 WebMap.techs = f.read().splitlines()
@@ -153,6 +154,7 @@ class WebMap(Session):
         return list(res)
 
     def check_cms(self):
+        '''Get used CMS from HTML'''
         if not WebMap.cmses:
             with (self.DIR / 'data/cms.txt').open() as f:
                 WebMap.cmses = f.read().splitlines()
@@ -160,8 +162,19 @@ class WebMap(Session):
         return list(res)
 
     def check_fuzz(self):
+        '''Fuzz paths to find misconfigs'''
         from concurrent.futures import ThreadPoolExecutor
         from lib.progress import Progress
+        from random import randrange
+        # First, try to check if random path exists.
+        # If it is, we potentially cant find misconfigs,
+        # coz it is SPA
+        random_path = ''.join(chr(randrange(ord('a'), ord('z')+1))
+                              for _ in range(8))
+        ok, *_ = self._check_path(f'/{random_path}')
+        if ok:
+            info('possible SPA')
+            return False
         paths = (
             self.DIR / 'data/fuzz_common.txt',
         )
@@ -181,6 +194,7 @@ class WebMap(Session):
         return status
 
     def check_linked_domains(self):
+        '''Get linked domains from HTML'''
         return get_linked_domains(self.html, self.hostname)
 
     def check_headers(self):
