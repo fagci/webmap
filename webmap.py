@@ -216,7 +216,7 @@ class WebMap(Session):
                 f.seek(0)
                 with ThreadPoolExecutor() as ex:
                     r = ex.map(self._check_subdomain, f.read().splitlines())
-                    for res, sd, code, c_len in r:
+                    for _, sd, code, c_len in r:
                         if code // 100 == 2:
                             print(end='\r')
                             found(f'[{code}] {sd} ({c_len} B)')
