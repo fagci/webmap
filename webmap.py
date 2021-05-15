@@ -57,7 +57,7 @@ class WebMap(Session):
             domains=self.check_domains,
             # parse source
             linked_domains=self.check_linked_domains,
-            robots=self.check_robots,
+            robots_disallow=self.check_robots,
             cms=self.check_cms,
             techs=self.check_techs,
             analytics=self.check_analytics,
@@ -137,7 +137,7 @@ class WebMap(Session):
                         else:
                             found(f'{n}:', ', '.join(r))
                 elif isinstance(res, list) or isinstance(res, set):
-                    found(*res)
+                    found(', '.join(res))
                 elif not isinstance(res, bool):
                     found(res)
                 else:
@@ -249,7 +249,7 @@ class WebMap(Session):
         response = self.get(
             f'{self.scheme}://{self.netloc}/robots.txt', verify=False, allow_redirects=False)
         if response.status_code // 100 == 2:
-            return response.text
+            return [l.split(None, 1)[1] for l in response.text.splitlines() if l.startswith('Disallow: ')]
 
     def _check_path(self, path) -> tuple[bool, str, int, int]:
         '''Check path for statuses < 400 without verification'''
