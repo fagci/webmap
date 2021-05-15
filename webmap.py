@@ -89,19 +89,19 @@ class WebMap(Session):
         info('Get initial response...')
 
         try:
-            self.first_response = self.get(
+            self.response = self.get(
                 self.target, allow_redirects=self.allow_redirects)
         except SSLError as e:
             err('SSL error', e)
-            self.first_response = self.get(
+            self.response = self.get(
                 self.target, allow_redirects=self.allow_redirects, verify=False)
 
-        if not self.first_response.ok:
-            raise Exception(f'Status: {self.first_response.status_code}')
+        if not self.response.ok:
+            raise Exception(f'Status: {self.response.status_code}')
 
-        info(f'[{self.first_response.status_code}]')
-        if self.first_response.is_redirect:
-            info('Location:', self.first_response.headers.get('location'))
+        info(f'[{self.response.status_code}]')
+        if self.response.is_redirect:
+            info('Location:', self.response.headers.get('location'))
 
     def check(self, checks):
         for check_name, check in self.checks.items():
@@ -143,18 +143,18 @@ class WebMap(Session):
         if not WebMap.techs:
             with (self.DIR / 'data/tech.txt').open() as f:
                 WebMap.techs = f.read().splitlines()
-        res = filter(lambda x: x in self.first_response.text, self.techs)
+        res = filter(lambda x: x in self.response.text, self.techs)
         return list(res)
 
     def check_cms(self):
         if not WebMap.cmses:
             with (self.DIR / 'data/cms.txt').open() as f:
                 WebMap.cmses = f.read().splitlines()
-        res = filter(lambda x: x in self.first_response.text, self.cmses)
+        res = filter(lambda x: x in self.response.text, self.cmses)
         return list(res)
 
     def check_linked_domains(self):
-        return get_linked_domains(self.first_response.text, self.hostname)
+        return get_linked_domains(self.response.text, self.hostname)
 
     def check_fuzz(self):
         from concurrent.futures import ThreadPoolExecutor
@@ -179,19 +179,19 @@ class WebMap(Session):
 
     def check_headers(self):
         '''Get interesting headers'''
-        return {k: v for k, v in self.first_response.headers.lower_items() if k in self.interesting_headers}
+        return {k: v for k, v in self.response.headers.lower_items() if k in self.interesting_headers}
 
     def check_analytics(self):
         '''Get analytics IDs'''
-        return get_analytics(self.first_response.text)
+        return get_analytics(self.response.text)
 
     def check_social(self):
         '''Get social links'''
-        return get_social(self.first_response.text)
+        return get_social(self.response.text)
 
     def check_contacts(self):
         '''Get contact information'''
-        return get_contacts(self.first_response.text)
+        return get_contacts(self.response.text)
 
     def _check_path(self, path) -> tuple[bool, str, int, int]:
         url = f'{self.target}{path}'
