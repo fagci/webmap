@@ -57,6 +57,7 @@ class WebMap(Session):
             domains=self.check_domains,
             # parse source
             linked_domains=self.check_linked_domains,
+            robots=self.check_robots,
             cms=self.check_cms,
             techs=self.check_techs,
             analytics=self.check_analytics,
@@ -244,6 +245,12 @@ class WebMap(Session):
         '''Get contact information'''
         return get_contacts(self.html)
 
+    def check_robots(self):
+        response = self.get(
+            f'{self.scheme}://{self.netloc}/robots.txt', verify=False, allow_redirects=False)
+        if response.status_code // 100 == 2:
+            return response.text
+
     def _check_path(self, path) -> tuple[bool, str, int, int]:
         '''Check path for statuses < 400 without verification'''
         # NOTE: all paths fuzzed from target root
@@ -255,7 +262,7 @@ class WebMap(Session):
     def _check_subdomain(self, subdomain) -> tuple[bool, str, int, int]:
         '''Check path for statuses < 400 without verification'''
         try:
-            url = f'{self.scheme}://{subdomain}.{self.netloc}:{self.port}'
+            url = f'{self.scheme}://{subdomain}.{self.netloc}'
             response = self.get(url, verify=False, timeout=5,
                                 stream=True, allow_redirects=False)
             return response.status_code//100 == 2, subdomain, response.status_code, len(response.content)
