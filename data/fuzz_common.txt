@@ -17,3 +17,7 @@
 /usernames.txt
 /users.txt
 /.gitignore
+/.profile
+/.ssh
+/.ssh/authorized_keys
+/.ssh/known_hosts
