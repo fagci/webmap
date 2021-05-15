@@ -51,14 +51,17 @@ class WebMap(Session):
 
         # all defined checks
         self.checks = OrderedDict(
-            domains=self.check_domains,
-            linked_domains=self.check_linked_domains,
+            # base info
             headers=self.check_headers,
-            techs=self.check_techs,
+            domains=self.check_domains,
+            # parse source
+            linked_domains=self.check_linked_domains,
             cms=self.check_cms,
+            techs=self.check_techs,
             analytics=self.check_analytics,
-            social=self.check_social,
             contacts=self.check_contacts,
+            social=self.check_social,
+            # fuzz
             fuzz=self.check_fuzz,
         )
 
@@ -164,8 +167,8 @@ class WebMap(Session):
     def check_fuzz(self):
         '''Fuzz paths to find misconfigs'''
         from concurrent.futures import ThreadPoolExecutor
-        from lib.progress import Progress
         from random import randrange
+        from lib.progress import Progress
         # First, try to check if random path exists.
         # If it is, we potentially cant find misconfigs,
         # coz it is SPA
