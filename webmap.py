@@ -67,6 +67,7 @@ class WebMap(Session):
 
         self.interesting_headers = {
             'access-control-allow-origin',
+            'content-security-policy',  # for additional domains. Deprecated?
             'last-modified',
             'server',
             'set-cookie',
