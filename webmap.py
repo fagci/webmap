@@ -109,40 +109,47 @@ class WebMap(Session):
                 if check_name == 'fuzz' and not (self.fuzz or checks):
                     continue
                 print(f'\n{check_name.upper()}')
-                if not check():
+                res = check()
+                if not res:
                     nfound('no data')
+                    continue
+
+                if isinstance(res, dict):
+                    for n, r in res.items():
+                        if isinstance(r, str):
+                            found(f'{n}:', r)
+                        else:
+                            found(f'{n}:', ', '.join(r))
+                elif isinstance(res, list) or isinstance(res, set):
+                    found(*res)
+                else:
+                    found(res)
 
     def check_domains(self):
         '''Get available domains'''
-        domains = None
+        res = {}
         if self.scheme == 'https':
             domains = get_domains_from_cert(self.hostname, self.port or 443)
             if domains:
-                found('cert:', *domains)
+                res['cert'] = domains
         domain = reverse_dns(self.ip)
         if domain:
-            found('rDNS:', domain)
-        return domains or domain
+            res['rDNS'] = [domain]
+        return res
 
     def check_techs(self):
         if not WebMap.techs:
             with (self.DIR / 'data/tech.txt').open() as f:
                 WebMap.techs = f.read().splitlines()
         res = filter(lambda x: x in self.first_response.text, self.techs)
-        res = list(res)
-        if res:
-            found(*res)
-        return res
+        return list(res)
 
     def check_cms(self):
         if not WebMap.cmses:
             with (self.DIR / 'data/cms.txt').open() as f:
                 WebMap.cmses = f.read().splitlines()
         res = filter(lambda x: x in self.first_response.text, self.cmses)
-        res = list(res)
-        if res:
-            found(*res)
-        return res
+        return list(res)
 
     def check_linked_domains(self):
         links = BeautifulSoup(self.first_response.text,
@@ -157,10 +164,7 @@ class WebMap(Session):
                 continue
             if pu.hostname == self.hostname:
                 continue
-            domains[l.name].add(pu.hostname)
-        if domains:
-            for tag, d in domains.items():
-                found(f'<{tag}>', ', '.join(sorted(d)))
+            domains[f'<{l.name}>'].add(pu.hostname)
         return domains
 
     def check_fuzz(self):
@@ -186,33 +190,19 @@ class WebMap(Session):
 
     def check_headers(self):
         '''Get interesting headers'''
-        status = False
-        for k, v in self.first_response.headers.lower_items():
-            if k in self.interesting_headers:
-                found(f'{k}: {v}')
-                status = True
-        return status
+        return {k: v for k, v in self.first_response.headers.lower_items() if k in self.interesting_headers}
 
     def check_analytics(self):
         '''Get analytics IDs'''
-        res = get_analytics(self.first_response.text)
-        for n, r in res.items():
-            found(f'{n}:', *r)
-        return res
+        return get_analytics(self.first_response.text)
 
     def check_social(self):
         '''Get social links'''
-        res = get_social(self.first_response.text)
-        for n, r in res.items():
-            found(f'{n}:', *r)
-        return res
+        return get_social(self.first_response.text)
 
     def check_contacts(self):
         '''Get contact information'''
-        res = get_contacts(self.first_response.text)
-        for n, r in res.items():
-            found(f'{n}:', *r)
-        return res
+        return get_contacts(self.first_response.text)
 
     def _check_path(self, path) -> tuple[bool, str, int, int]:
         url = f'{self.target}{path}'
