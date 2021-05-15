@@ -254,10 +254,13 @@ class WebMap(Session):
 
     def _check_subdomain(self, subdomain) -> tuple[bool, str, int, int]:
         '''Check path for statuses < 400 without verification'''
-        url = f'{self.scheme}://{subdomain}.{self.netloc}:{self.port}'
-        response = self.get(url, verify=False, timeout=5,
-                            stream=True, allow_redirects=False)
-        return response.status_code//100 == 2, subdomain, response.status_code, len(response.content)
+        try:
+            url = f'{self.scheme}://{subdomain}.{self.netloc}:{self.port}'
+            response = self.get(url, verify=False, timeout=5,
+                                stream=True, allow_redirects=False)
+            return response.status_code//100 == 2, subdomain, response.status_code, len(response.content)
+        except:
+            return False, subdomain, 999, 0
 
 
 def main(target, checks=None, n=False, fuzz=False, subdomains=False, r=False, full=False):
