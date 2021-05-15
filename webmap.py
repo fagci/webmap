@@ -37,16 +37,17 @@ class WebMap(Session):
     cmses = []
     DIR = Path(__file__).resolve().parent
 
-    __slots__ = ('target', 'fuzz', 'allow_redirects', 'scheme',
+    __slots__ = ('target', 'fuzz', 'subdomains', 'allow_redirects', 'scheme',
                  'hostname', 'netloc', 'port', 'path', 'ip', 'response', 'html', 'interesting_headers')
 
-    def __init__(self, target, fuzz=False, allow_redirects=False, resolve_ip=True):
+    def __init__(self, target, fuzz=False, subdomains=False, allow_redirects=False, resolve_ip=True):
         super().__init__()
         self.headers['User-Agent'] = 'Mozilla/5.0'
 
         # initial data
         self.target = target
         self.fuzz = fuzz
+        self.subdomains = subdomains
         self.allow_redirects = allow_redirects
 
         # all defined checks
@@ -63,6 +64,7 @@ class WebMap(Session):
             social=self.check_social,
             # fuzz
             fuzz=self.check_fuzz,
+            subdomains=self.check_subdomains,
         )
 
         self.interesting_headers = {
@@ -118,6 +120,8 @@ class WebMap(Session):
         for check_name, check in self.checks.items():
             if check and (checks is None or check_name in checks):
                 if check_name == 'fuzz' and not (self.fuzz or checks):
+                    continue
+                if check_name == 'subdomains' and not (self.subdomains or checks):
                     continue
                 print(f'\n{check_name.upper()}')
                 res = check()
@@ -176,9 +180,9 @@ class WebMap(Session):
         # coz it is SPA
         random_path = ''.join(chr(randrange(ord('a'), ord('z')+1))
                               for _ in range(8))
-        ok, *_ = self._check_path(f'/{random_path}')
+        ok, path, *_ = self._check_path(f'/{random_path}')
         if ok:
-            info('possible SPA')
+            info(path, 'possible SPA')
             return False
         paths = (
             self.DIR / 'data/fuzz_common.txt',
@@ -196,6 +200,28 @@ class WebMap(Session):
                             found(f'[{code}] {path} ({c_len} B)')
                             status = True
                         progress(path)
+        return status
+
+    def check_subdomains(self):
+        '''Fuzz paths to find misconfigs'''
+        from concurrent.futures import ThreadPoolExecutor
+        from lib.progress import Progress
+        paths = (
+            self.DIR / 'data/fuzz_subdomain.txt',
+        )
+        status = False
+        for p in paths:
+            with p.open() as f:
+                progress = Progress(sum(1 for _ in f))
+                f.seek(0)
+                with ThreadPoolExecutor() as ex:
+                    r = ex.map(self._check_subdomain, f.read().splitlines())
+                    for res, sd, code, c_len in r:
+                        if code // 100 == 2:
+                            print(end='\r')
+                            found(f'[{code}] {sd} ({c_len} B)')
+                            status = True
+                        progress(sd)
         return status
 
     def check_linked_domains(self):
@@ -221,15 +247,24 @@ class WebMap(Session):
     def _check_path(self, path) -> tuple[bool, str, int, int]:
         '''Check path for statuses < 400 without verification'''
         url = f'{self.target}{path}'
-        response = self.get(url, verify=False, timeout=5, stream=True)
-        return response.ok, path, response.status_code, len(response.content)
+        response = self.get(url, verify=False, timeout=5,
+                            stream=True, allow_redirects=False)
+        return response.status_code//100 == 2, path, response.status_code, len(response.content)
+
+    def _check_subdomain(self, subdomain) -> tuple[bool, str, int, int]:
+        '''Check path for statuses < 400 without verification'''
+        url = f'{self.scheme}://{subdomain}.{self.netloc}:{self.port}'
+        response = self.get(url, verify=False, timeout=5,
+                            stream=True, allow_redirects=False)
+        return response.status_code//100 == 2, subdomain, response.status_code, len(response.content)
 
 
-def main(target, checks=None, n=False, fuzz=False, r=False):
+def main(target, checks=None, n=False, fuzz=False, subdomains=False, r=False):
     print('='*42)
     print(BANNER.strip())
     print('='*42)
     WebMap(target, resolve_ip=not n, fuzz=fuzz,
+           subdomains=subdomains,
            allow_redirects=r).check(checks)
 
 
