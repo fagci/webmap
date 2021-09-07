@@ -91,7 +91,7 @@ class WebMap(Session):
             self.ip = gethostbyname(self.hostname)
 
         info(f'Target: {self.target}')
-        info('IP:', self.ip if self.ip else 'not resolved')
+        info('IP:', self.ip or 'not resolved')
         print('-'*42)
 
         self.prepare()
@@ -122,7 +122,11 @@ class WebMap(Session):
             if check and (checks is None or check_name in checks):
                 if check_name == 'fuzz' and not (self.fuzz or checks):
                     continue
-                if check_name == 'subdomains' and not (self.subdomains or checks):
+                if (
+                    check_name == 'subdomains'
+                    and not self.subdomains
+                    and not checks
+                ):
                     continue
                 print(f'\n{check_name.upper()}')
                 res = check()
