@@ -17,6 +17,15 @@
 /usernames.txt
 /users.txt
 /.gitignore
+/.git
+/.git-rewrite/
+/.git/
+/.git/HEAD
+/.git/config
+/.git/index
+/.git/logs/
+/.git/logs/HEAD
+/.git/logs/refs
 /.profile
 /.ssh
 /.ssh/authorized_keys

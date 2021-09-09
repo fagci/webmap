@@ -65,6 +65,7 @@ class WebMap(Session):
             social=self.check_social,
             # fuzz
             fuzz=self.check_fuzz,
+            extra=self.check_bigfuzz,
             subdomains=self.check_subdomains,
         )
 
@@ -210,6 +211,39 @@ class WebMap(Session):
                         progress(path)
         return status
 
+    def check_bigfuzz(self):
+        '''Fuzz paths to find misconfigs'''
+        from concurrent.futures import ThreadPoolExecutor
+        from random import randrange
+        from lib.progress import Progress
+        # First, try to check if random path exists.
+        # If it is, we potentially cant find misconfigs,
+        # coz it is SPA
+        random_path = ''.join(chr(randrange(ord('a'), ord('z')+1))
+                              for _ in range(8))
+        ok, path, *_ = self._check_path(f'/{random_path}')
+        if ok:
+            info(path, 'possible SPA')
+            return False
+        paths = (
+            self.DIR / 'data/fuzz_large.txt',
+        )
+        status = False
+        for p in paths:
+            with p.open() as f:
+                progress = Progress(sum(1 for _ in f))
+                f.seek(0)
+                with ThreadPoolExecutor() as ex:
+                    r = ex.map(self._check_path, f.read().splitlines())
+                    for res, path, code, c_len in r:
+                        if res:
+                            print(end='\r')
+                            found(f'[{code}] {path} ({c_len} B)')
+                            status = True
+                        progress(path)
+        return status
+
+
     def check_subdomains(self):
         '''Fuzz paths to find misconfigs'''
         from concurrent.futures import ThreadPoolExecutor
@@ -258,7 +292,7 @@ class WebMap(Session):
         if response.status_code // 100 == 2:
             return {l.split(None, 1)[1] for l in response.text.splitlines() if l.startswith('Disallow: ')}
 
-    def _check_path(self, path) -> tuple[bool, str, int, int]:
+    def _check_path(self, path) -> tuple:
         '''Check path for statuses < 400 without verification'''
         # NOTE: all paths fuzzed from target root
         url = f'{self.target}{path}'
@@ -266,7 +300,7 @@ class WebMap(Session):
                             stream=True, allow_redirects=False)
         return response.status_code//100 == 2, path, response.status_code, len(response.content)
 
-    def _check_subdomain(self, subdomain) -> tuple[bool, str, int, int]:
+    def _check_subdomain(self, subdomain) -> tuple:
         '''Check path for statuses < 400 without verification'''
         try:
             url = f'{self.scheme}://{subdomain}.{self.netloc}'
